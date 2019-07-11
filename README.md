@@ -5,6 +5,8 @@
 
 ### Quickstart
 
+Install is easy via `pip install sqwrl`.
+
 ```python
 import pandas as pd
 from sqwrl import DB

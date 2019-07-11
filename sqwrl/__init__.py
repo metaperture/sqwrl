@@ -21,15 +21,157 @@ import operator
 from functools import wraps, partialmethod, reduce
 from collections.abc import Iterable
 from warnings import warn
+import numbers
 
 import pandas as pd
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.sql import func
+    from sqlalchemy.dialects import mssql, postgresql
 import sympy
-from toolz import assoc
-from odo.backends.sql import types as sa_types
-from odo.backends.sql import discover_typeengine
+from toolz import assoc, valfilter
+#from odo.backends.sql import types as sa_types
+#from odo.backends.sql import discover_typeengine
+import datashape
+
+__version__ = "0.0.1"
+
+# -------------------------------------
+# COPYING FROM ODO TO REMOVE DEPENDENCY
+# from odo https://github.com/blaze/odo/blob/master/odo/backends/sql.py
+
+sa_types = {
+    'int64': sa.BigInteger,
+    'int32': sa.Integer,
+    'int': sa.Integer,
+    'int16': sa.SmallInteger,
+    'float32': sa.REAL,
+    'float64': sa.FLOAT,
+    'float': sa.FLOAT,
+    'real': sa.FLOAT,
+    'string': sa.Text,
+    'date': sa.Date,
+    'time': sa.Time,
+    'datetime': sa.DateTime,
+    'bool': sa.Boolean,
+    "timedelta[unit='D']": sa.Interval(second_precision=0, day_precision=9),
+    "timedelta[unit='h']": sa.Interval(second_precision=0, day_precision=0),
+    "timedelta[unit='m']": sa.Interval(second_precision=0, day_precision=0),
+    "timedelta[unit='s']": sa.Interval(second_precision=0, day_precision=0),
+    "timedelta[unit='ms']": sa.Interval(second_precision=3, day_precision=0),
+    "timedelta[unit='us']": sa.Interval(second_precision=6, day_precision=0),
+    "timedelta[unit='ns']": sa.Interval(second_precision=9, day_precision=0),
+    # ??: sa.types.LargeBinary,
+}
+
+sa_revtypes = dict(map(reversed, sa_types.items()))
+
+# Subclass mssql.TIMESTAMP subclass for use when differentiating between
+# mssql.TIMESTAMP and sa.TIMESTAMP.
+# At the time of this writing, (mssql.TIMESTAMP == sa.TIMESTAMP) is True,
+# which causes a collision when defining the sa_revtypes mappings.
+#
+# See:
+# https://bitbucket.org/zzzeek/sqlalchemy/issues/4092/type-problem-with-mssqltimestamp
+class MSSQLTimestamp(mssql.TIMESTAMP):
+    pass
+
+# Assign the custom subclass as the type to use instead of `mssql.TIMESTAMP`.
+mssql.base.ischema_names['TIMESTAMP'] = MSSQLTimestamp
+
+sa_revtypes.update({
+    sa.DATETIME: datashape.datetime_,
+    sa.TIMESTAMP: datashape.datetime_,
+    sa.FLOAT: datashape.float64,
+    sa.DATE: datashape.date_,
+    sa.BIGINT: datashape.int64,
+    sa.INTEGER: datashape.int_,
+    sa.BIGINT: datashape.int64,
+    sa.types.NullType: datashape.string,
+    sa.REAL: datashape.float32,
+    sa.Float: datashape.float64,
+    mssql.BIT: datashape.bool_,
+    mssql.DATETIMEOFFSET: datashape.string,
+    mssql.MONEY: datashape.float64,
+    mssql.SMALLMONEY: datashape.float32,
+    mssql.UNIQUEIDENTIFIER: datashape.string,
+    # The SQL Server TIMESTAMP value doesn't correspond to the ISO Standard
+    # It is instead just a binary(8) value with no relation to dates or times
+    MSSQLTimestamp: datashape.bytes_,
+})
+
+precision_types = {
+    sa.Float,
+    postgresql.base.DOUBLE_PRECISION
+}
+
+def precision_to_dtype(precision):
+    """
+    Maps a float or double precision attribute to the desired dtype.
+    The mappings are as follows:
+    [1, 24] -> float32
+    [25, 53] -> float64
+    Values outside of those ranges raise a ``ValueError``.
+    Parameter
+    ---------
+    precision : int
+         A double or float precision. e.g. the value returned by
+    `postgresql.base.DOUBLE_PRECISION(precision=53).precision`
+    Returns
+    -------
+    dtype : datashape.dtype (float32|float64)
+         The dtype to use for columns of the specified precision.
+    """
+    if isinstance(precision, numbers.Integral):
+        if 1 <= precision <= 24:
+            return float32
+        elif 25 <= precision <= 53:
+            return float64
+    raise ValueError("{} is not a supported precision".format(precision))
+
+# interval types are special cased in discover_typeengine so remove them from
+# sa_revtypes
+sa_revtypes = valfilter(lambda x: not isinstance(x, sa.Interval), sa_revtypes)
+
+def discover_typeengine(typ):
+    if isinstance(typ, sa.Interval):
+        if typ.second_precision is None and typ.day_precision is None:
+            return datashape.TimeDelta(unit='us')
+        elif typ.second_precision == 0 and typ.day_precision == 0:
+            return datashape.TimeDelta(unit='s')
+
+        if typ.second_precision in units_of_power and not typ.day_precision:
+            units = units_of_power[typ.second_precision]
+        elif typ.day_precision > 0:
+            units = 'D'
+        else:
+            raise ValueError('Cannot infer INTERVAL type with parameters'
+                             'second_precision=%d, day_precision=%d' %
+                             (typ.second_precision, typ.day_precision))
+        return datashape.TimeDelta(unit=units)
+    if type(typ) in precision_types and typ.precision is not None:
+        return precision_to_dtype(typ.precision)
+    if typ in sa_revtypes:
+        return datashape.dshape(sa_revtypes[typ])[0]
+    if type(typ) in sa_revtypes:
+        return sa_revtypes[type(typ)]
+    if isinstance(typ, sa.Numeric):
+        return datashape.Decimal(precision=typ.precision, scale=typ.scale)
+    if isinstance(typ, (sa.String, sa.Unicode)):
+        return datashape.String(typ.length, 'U8')
+    else:
+        for k, v in sa_revtypes.items():
+            if isinstance(k, type) and (isinstance(typ, k) or
+                                        hasattr(typ, 'impl') and
+                                        isinstance(typ.impl, k)):
+                return v
+            if k == typ:
+                return v
+    raise NotImplementedError("No SQL-datashape match for type %s" % typ)
+
+# -------------------------------------
+# END COPYING FROM ODO
+# -------------------------------------
 
 def is_striter(val):
     return isinstance(val, Iterable) and all(isinstance(el, str) for el in val)
