@@ -30,3 +30,25 @@ True
 ```
 
 See [usage](https://nbviewer.jupyter.org/github/enkratic/sqwrl/blob/master/usage.ipynb) for more usage examples.
+
+Basic Features:
+ - [x] Smart Pandas like wheres using getitem
+ - [x] `.loc` operations
+ - [x] Indexing (including reset_index, drops, and appending)
+ - [x] Sorting
+ - [x] Most arithmetic operations lazily pushed
+ - [x] Metadata like length and dtypes
+
+Advanced Features:
+ - Groupby
+   - [x] Groupby group iteration
+   - [x] Groupby aggregation
+   - [ ] Groupby aggregation over multiple columns
+   - [ ] Groupby group sizes
+   - [ ] Groupby transform and apply
+ - Joins
+   - [ ] Pandas-style joins (have the basic framework in place for this)
+ - Mutation
+   - [ ] Adding, deleting, and editing columns
+   - [ ] Appending existing tables
+   - [ ] Deleting or editing based on conditions

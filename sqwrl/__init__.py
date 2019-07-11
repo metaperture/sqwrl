@@ -267,7 +267,7 @@ class VirtualTable:
     ## location
     def _lookup(self, k):
         result = self.where(self.index == k).df
-        if len(result) == 1:
+        if len(result) == 1: # and not isinstance(k, sa.sql.elements.ClauseElement):
             return result.iloc[0]
         elif len(result) == 0:
             raise KeyError("%r not found in %s" % (k, self.index))
@@ -278,7 +278,7 @@ class VirtualTable:
         if isinstance(k, tuple) and len(k) == 2:
             condition, cols = k
             if isinstance(cols, str) or is_striter(cols):
-                return self._loc[condition][cols]
+                return self._loc(condition)[cols]
         if isinstance(k, slice):
             # slice (greater than: less than)
             if k.step is not None:
@@ -696,8 +696,13 @@ for opname in ["lt", "le", "gt", "eq", "ge", "ne",
                "and_", "or_"]:
     op = getattr(operator, opname)
     def fn(self, other, op=op):
-        new_sa = op(self.sa, getattr(other, "sa", other))
-        return Expression(self.table, new_sa, self.name)
+        if hasattr(other, "sa"):
+            new_sa = op(self.sa, other.sa)
+            new_name = self.name if other.name == self.name else None
+        else:
+            new_sa = op(self.sa, other)
+            new_name = self.name
+        return Expression(self.table, new_sa, new_name)
     setattr(Expression, "__%s__" % opname.strip("_"), fn)
 
 # pass-through to underlying table
@@ -766,7 +771,7 @@ class GroupBy:
         singleton = len(self.by) == 1
         groups = list(self.table.iterselect(by, groupby=by))
         return {group[0] if singleton else group:
-                and_(*[by_el == group_el for by_el, group_el in zip(by, group)])
+                and_(*[by_el == group_el for by_el, group_el in zip(self.by, group)])
                 for group in groups}
 
     def __len__(self):
@@ -810,7 +815,8 @@ class GroupBy:
         # TODO: return as synthetic table?
         # class VirtualTable - has a base for queries (sa), and a bunch of columns
         if isinstance(self.base, Table):
-            colnames = [col for col, dtype in zip(self.base.columns, self.base.coltypes) if dtype in valid_types]
+            colnames = [col for col, dtype in zip(self.base.columns, self.base.coltypes) if dtype in valid_types
+                        and not col in bynames]
             salc = [by.sa for by in self.by] + [fn(self.base[col].sa) for col in colnames]
         else:
             colnames = [self.base.name]
@@ -823,6 +829,8 @@ class GroupBy:
             vt = VirtualTable(self.table.engine, new_sa)
             vt._ixdata, vt._coldata = vt._coldata[:len(bynames)], vt._coldata[len(bynames):]
             vt._ix, vt._columns = bynames, colnames
+            if not self.as_index:
+                vt = vt.reset_index()[bynames + colnames]
             return vt
 
         df = pd.DataFrame.from_records(list(self.table.iterselect(salc, groupby=by, sort_by=sort_by)),
