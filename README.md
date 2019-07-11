@@ -31,7 +31,9 @@ True
 
 See [usage](https://nbviewer.jupyter.org/github/enkratic/sqwrl/blob/master/usage.ipynb) for more usage examples.
 
-Basic Features:
+---
+
+### Basic Features:
  - [x] Smart Pandas like wheres using getitem
  - [x] `.loc` operations
  - [x] Indexing (including reset_index, drops, and appending)
@@ -39,7 +41,7 @@ Basic Features:
  - [x] Most arithmetic operations lazily pushed
  - [x] Metadata like length and dtypes
 
-Advanced Features:
+### Advanced Features:
  - Groupby
    - [x] Groupby group iteration
    - [x] Groupby aggregation
