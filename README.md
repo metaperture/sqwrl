@@ -28,3 +28,5 @@ Use the `.df` attribute on sqwrl table objects to read their output into pandas 
 >>> (ans_tbl.df == ans_df).all().all()
 True
 ```
+
+See [usage](usage.ipynb) for more usage examples.
