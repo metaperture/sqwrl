@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/enkratic/sqwrl/master/sqwrl.png" width="200" height="200">
+<img src="https://raw.githubusercontent.com/enkratic/sqwrl/master/docs/sqwrl.png" width="200" height="200">
 
 # sqwrl
 ### Sqlachemy Query WRapper Library
@@ -10,7 +10,7 @@ import pandas as pd
 from sqwrl import DB
 db = DB('sqlite:///:memory:')
 df = pd.DataFrame({"x": [1,2,3,4,5], "y": list("abcdf"), "z": [1.0, 1.5, 1.5, 1.2, 1.3]}).set_index("y")
-ans_df = pd.read_csv("anscombe.csv")
+ans_df = pd.read_csv("tests/anscombe.csv")
 db["anscombe"] = ans_df
 ans_tbl = db["anscombe"]
 ans_tbl
