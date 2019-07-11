@@ -29,4 +29,4 @@ Use the `.df` attribute on sqwrl table objects to read their output into pandas 
 True
 ```
 
-See [usage](usage.ipynb) for more usage examples.
+See [usage](https://nbviewer.jupyter.org/github/enkratic/sqwrl/blob/master/usage.ipynb) for more usage examples.
