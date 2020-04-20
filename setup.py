@@ -9,6 +9,7 @@ classifiers = [
     "Programming Language :: Python :: 3.4",
     "Programming Language :: Python :: 3.5",
     "Programming Language :: Python :: 3.6",
+    "Programming Language :: SQL",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Topic :: Software Development :: Libraries",
@@ -17,22 +18,23 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Software Development",
     "Topic :: Software Development :: Code Generators",
-    "Topic :: Software Development :: User Interfaces",
-    "Topic :: System :: Shells",
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
 ]
 
 with open("README.md", "r") as fp:
     long_description = fp.read()
 
 setup(name="sqwrl",
-      version="0.0.1",
+      version="0.1.0",
       author="Michael Tartre",
       author_email="michael@enkratic.com",
-      url="https://github.com/enkratic/sqwrl",
+      url="https://github.com/quantology/sqwrl",
       py_modules=["sqwrl"],
       install_requires=["pandas", "numpy", "sqlalchemy", "sympy", "toolz", "datashape"],
       description="Sqlachemy Query WRapper Library - pandas-like SQL",
       long_description=long_description,
-      license="MIT",
+      long_description_content_type='text/markdown',
+      license="bsd-3-clause",
       classifiers=classifiers
       )

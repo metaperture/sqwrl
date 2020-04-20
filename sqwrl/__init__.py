@@ -27,14 +27,14 @@ import pandas as pd
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.sql import func
-    from sqlalchemy.dialects import mssql, postgresql
+from sqlalchemy.dialects import mssql, postgresql
 import sympy
 from toolz import assoc, valfilter
 #from odo.backends.sql import types as sa_types
 #from odo.backends.sql import discover_typeengine
 import datashape
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 # -------------------------------------
 # COPYING FROM ODO TO REMOVE DEPENDENCY
